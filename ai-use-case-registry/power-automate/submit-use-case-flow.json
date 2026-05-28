@@ -1,0 +1,114 @@
+{
+  "name": "efta-submit-use-case-flow",
+  "displayName": "EFTA – Submit AI Use Case",
+  "description": "Called by Copilot Studio. Creates a Dataverse record and notifies the approver.",
+  "trigger": {
+    "type": "PowerAppsV2",
+    "inputs": {
+      "schema": {
+        "ProblemStatement": "string",
+        "Domain": "string",
+        "ToolUsed": "string",
+        "ToolDetail": "string",
+        "Outcome": "string",
+        "KeyLearning": "string",
+        "Visibility": "string",
+        "SubmittedBy": "string"
+      }
+    }
+  },
+  "actions": [
+    {
+      "id": "createDataverseRecord",
+      "type": "DataverseCreateRow",
+      "displayName": "Create case in Dataverse",
+      "inputs": {
+        "table": "efta_aiusecases",
+        "row": {
+          "efta_problemstatement": "@triggerBody()?['ProblemStatement']",
+          "efta_domain": "@triggerBody()?['Domain']",
+          "efta_toolused": "@triggerBody()?['ToolUsed']",
+          "efta_tooldetail": "@triggerBody()?['ToolDetail']",
+          "efta_outcome": "@triggerBody()?['Outcome']",
+          "efta_keylearning": "@triggerBody()?['KeyLearning']",
+          "efta_visibility": "@triggerBody()?['Visibility']",
+          "efta_submittedby@odata.bind": "/systemusers(@triggerBody()?['SubmittedBy'])",
+          "efta_status": "Draft",
+          "efta_submissiondate": "@utcNow()"
+        }
+      },
+      "outputs": {
+        "CaseId": "@outputs('createDataverseRecord')?['body/efta_caseid']",
+        "RecordId": "@outputs('createDataverseRecord')?['body/efta_aiusecaseid']"
+      }
+    },
+    {
+      "id": "notifyApprover",
+      "type": "TeamsPostAdaptiveCard",
+      "displayName": "Notify approver in Teams",
+      "runAfter": ["createDataverseRecord"],
+      "inputs": {
+        "recipient": {
+          "type": "GroupChat",
+          "channelId": "{{APPROVER_TEAMS_CHANNEL_ID}}"
+        },
+        "card": {
+          "type": "AdaptiveCard",
+          "version": "1.4",
+          "body": [
+            {
+              "type": "TextBlock",
+              "text": "New AI Use Case Submitted",
+              "weight": "Bolder",
+              "size": "Medium"
+            },
+            {
+              "type": "FactSet",
+              "facts": [
+                { "title": "Case ID", "value": "@{outputs('createDataverseRecord')?['body/efta_caseid']}" },
+                { "title": "Domain", "value": "@triggerBody()?['Domain']" },
+                { "title": "Tool", "value": "@triggerBody()?['ToolUsed']" },
+                { "title": "Visibility requested", "value": "@triggerBody()?['Visibility']" }
+              ]
+            },
+            {
+              "type": "TextBlock",
+              "text": "@triggerBody()?['ProblemStatement']",
+              "wrap": true,
+              "label": "Problem"
+            }
+          ],
+          "actions": [
+            {
+              "type": "Action.OpenUrl",
+              "title": "Review in Power Apps",
+              "url": "https://make.powerapps.com/environments/{{ENV_ID}}/tables/efta_aiusecase/records/@{outputs('createDataverseRecord')?['body/efta_aiusecaseid']}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "confirmToSubmitter",
+      "type": "TeamsPostMessage",
+      "displayName": "Confirm to submitter",
+      "runAfter": ["createDataverseRecord"],
+      "inputs": {
+        "recipient": {
+          "type": "User",
+          "userId": "@triggerBody()?['SubmittedBy']"
+        },
+        "message": "Your AI use case **@{outputs('createDataverseRecord')?['body/efta_caseid']}** has been submitted and is pending review. You'll be notified here when it's approved."
+      }
+    },
+    {
+      "id": "returnCaseId",
+      "type": "Response",
+      "displayName": "Return Case ID to Copilot Studio",
+      "runAfter": ["notifyApprover", "confirmToSubmitter"],
+      "inputs": {
+        "CaseId": "@outputs('createDataverseRecord')?['body/efta_caseid']"
+      }
+    }
+  ]
+}

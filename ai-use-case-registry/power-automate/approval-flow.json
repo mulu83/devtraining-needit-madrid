@@ -1,0 +1,71 @@
+{
+  "name": "efta-approve-use-case-flow",
+  "displayName": "EFTA – Approve / Reject AI Use Case",
+  "description": "Triggered when an approver changes Status in the model-driven app. Notifies submitter and, if Approved+Public, sets Status to Published.",
+  "trigger": {
+    "type": "DataverseRowUpdated",
+    "inputs": {
+      "table": "efta_aiusecases",
+      "filterColumns": ["efta_status"]
+    }
+  },
+  "actions": [
+    {
+      "id": "checkStatus",
+      "type": "Switch",
+      "expression": "@triggerBody()?['efta_status']",
+      "cases": {
+        "Approved": {
+          "actions": [
+            {
+              "id": "notifyApproved",
+              "type": "TeamsPostMessage",
+              "displayName": "Tell submitter: approved",
+              "inputs": {
+                "recipient": {
+                  "type": "User",
+                  "userId": "@triggerBody()?['_efta_submittedby_value']"
+                },
+                "message": "Great news — your AI use case **@{triggerBody()?['efta_caseid']}** has been approved. @{if(equals(triggerBody()?['efta_visibility'], 'Public'), 'It will appear on the public portal shortly.', 'It is now visible on the internal registry.')}"
+              }
+            },
+            {
+              "id": "publishIfPublic",
+              "type": "Condition",
+              "condition": "@equals(triggerBody()?['efta_visibility'], 'Public')",
+              "ifTrue": [
+                {
+                  "id": "setPublished",
+                  "type": "DataverseUpdateRow",
+                  "inputs": {
+                    "table": "efta_aiusecases",
+                    "rowId": "@triggerBody()?['efta_aiusecaseid']",
+                    "row": {
+                      "efta_status": "Published"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "Rejected": {
+          "actions": [
+            {
+              "id": "notifyRejected",
+              "type": "TeamsPostMessage",
+              "displayName": "Tell submitter: rejected with notes",
+              "inputs": {
+                "recipient": {
+                  "type": "User",
+                  "userId": "@triggerBody()?['_efta_submittedby_value']"
+                },
+                "message": "Your AI use case **@{triggerBody()?['efta_caseid']}** was not approved at this stage. Reviewer notes: *@{triggerBody()?['efta_approvernotes']}*. You're welcome to revise and resubmit."
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

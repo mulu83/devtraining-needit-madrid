@@ -1,0 +1,201 @@
+kind: AdaptiveDialog
+beginDialog:
+  kind: OnRecognizedIntent
+  id: main
+  intent:
+    triggerQueries:
+      - submit a use case
+      - register use case
+      - add new ai case
+      - log initiative
+      - I want to submit
+      - new use case
+
+topics:
+  - id: SubmitUseCase
+    displayName: Submit AI Use Case
+    description: Guides staff through submitting a new AI or automation use case
+
+    conversation:
+      - id: welcome
+        kind: SendMessage
+        message: |
+          Hi! I'll help you register an AI or automation use case.
+          This takes about 3 minutes. I'll ask you 5 questions — just answer naturally.
+
+          Let's start: **What problem or opportunity did you address?**
+          (Describe it in plain language — no jargon needed.)
+
+      - id: collectProblem
+        kind: Question
+        variable: Topic.ProblemStatement
+        dataType: String
+        validation:
+          minLength: 20
+          errorMessage: Please give a bit more detail — at least a sentence or two.
+
+      - id: askDomain
+        kind: SendMessage
+        message: "Got it. Which area of the organisation does this relate to?"
+
+      - id: collectDomain
+        kind: Question
+        variable: Topic.Domain
+        dataType: Choice
+        choices:
+          - Finance & Budget
+          - Legal & Compliance
+          - Trade & Statistics
+          - HR & Workforce
+          - IT & Infrastructure
+          - Communications & Outreach
+          - Policy & Analysis
+          - Other
+
+      - id: askTool
+        kind: SendMessage
+        message: "What AI or automation tool was used?"
+
+      - id: collectTool
+        kind: Question
+        variable: Topic.ToolUsed
+        dataType: Choice
+        choices:
+          - Microsoft Copilot
+          - Claude (Anthropic)
+          - Azure AI Services
+          - Power Automate
+          - Power BI
+          - GitHub Copilot
+          - Custom ML Model
+          - Other (I'll specify)
+
+      - id: collectToolDetail
+        kind: Condition
+        condition: Topic.ToolUsed == "Other (I'll specify)"
+        ifTrue:
+          - kind: Question
+            variable: Topic.ToolDetail
+            dataType: String
+            question: "What tool or technology was it?"
+
+      - id: askOutcome
+        kind: SendMessage
+        message: |
+          What was the result?
+          Try to be specific — time saved, errors reduced, volume handled, etc.
+          Even a rough estimate ("about 2 hours per week") is valuable.
+
+      - id: collectOutcome
+        kind: Question
+        variable: Topic.Outcome
+        dataType: String
+        validation:
+          minLength: 20
+          errorMessage: Please describe the outcome in at least one full sentence.
+
+      - id: askLearning
+        kind: SendMessage
+        message: |
+          Last question: **What's the key learning for colleagues who might try something similar?**
+          What would you do differently, or what should they watch out for?
+
+      - id: collectLearning
+        kind: Question
+        variable: Topic.KeyLearning
+        dataType: String
+        validation:
+          minLength: 20
+          errorMessage: Please share at least one learning — even a short one helps others.
+
+      - id: askVisibility
+        kind: SendMessage
+        message: |
+          Almost done. Who should be able to see this case?
+
+      - id: collectVisibility
+        kind: Question
+        variable: Topic.Visibility
+        dataType: Choice
+        choices:
+          - Internal only (staff only)
+          - Management (visible to management dashboard)
+          - Public (visible on public portal)
+
+      - id: confirmSummary
+        kind: SendMessage
+        message: |
+          Here's a summary of what I'll submit:
+
+          **Domain:** {Topic.Domain}
+          **Problem:** {Topic.ProblemStatement}
+          **Tool:** {Topic.ToolUsed} {Topic.ToolDetail}
+          **Outcome:** {Topic.Outcome}
+          **Key learning:** {Topic.KeyLearning}
+          **Visibility:** {Topic.Visibility}
+
+          Shall I submit this, or would you like to change anything?
+
+      - id: confirmSubmit
+        kind: Question
+        variable: Topic.ConfirmSubmit
+        dataType: Choice
+        choices:
+          - Submit it
+          - Change something
+
+      - id: handleChange
+        kind: Condition
+        condition: Topic.ConfirmSubmit == "Change something"
+        ifTrue:
+          - kind: SendMessage
+            message: "No problem. Which part would you like to change? (Problem / Domain / Tool / Outcome / Learning / Visibility)"
+          - kind: Question
+            variable: Topic.ChangeField
+            dataType: String
+          # Loop back — handled by routing to the relevant collection step
+
+      - id: submitToDataverse
+        kind: InvokeFlowAction
+        flowId: efta-submit-use-case-flow
+        inputs:
+          ProblemStatement: Topic.ProblemStatement
+          Domain: Topic.Domain
+          ToolUsed: Topic.ToolUsed
+          ToolDetail: Topic.ToolDetail
+          Outcome: Topic.Outcome
+          KeyLearning: Topic.KeyLearning
+          Visibility: Topic.Visibility
+          SubmittedBy: System.User.Id
+
+      - id: successMessage
+        kind: SendMessage
+        message: |
+          Submitted! Your case reference is **{outputs.CaseId}**.
+
+          It's now with the approver. You'll get a Teams notification once it's reviewed.
+          Thank you for contributing to EFTA's AI knowledge base.
+
+  - id: CheckStatus
+    displayName: Check Case Status
+    description: Lets staff check the status of a previously submitted case
+
+    triggerQueries:
+      - what's the status of my case
+      - check my submission
+      - has my case been approved
+
+    conversation:
+      - id: lookupCases
+        kind: InvokeFlowAction
+        flowId: efta-get-my-cases-flow
+        inputs:
+          UserId: System.User.Id
+
+      - id: showStatus
+        kind: SendMessage
+        message: |
+          Here are your recent submissions:
+          {outputs.CaseList}
+
+          Need help with anything else?

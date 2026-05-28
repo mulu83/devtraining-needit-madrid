@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EFTA AI Use Case Registry</title>
+  <style>
+    :root {
+      --efta-blue: #003087;
+      --efta-light: #f4f7fb;
+      --efta-border: #d0d9e8;
+      --text: #1a1a2e;
+      --muted: #5a6a7e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--efta-light);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      background: var(--efta-blue);
+      color: white;
+      padding: 1.5rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header p { font-size: 0.9rem; opacity: 0.8; margin-top: 0.2rem; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+    .filters {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .filters select, .filters input {
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--efta-border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: white;
+      color: var(--text);
+    }
+    .filters label { font-size: 0.85rem; color: var(--muted); margin-right: -0.5rem; }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: white;
+      border: 1px solid var(--efta-border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .stat-card .number { font-size: 2rem; font-weight: 700; color: var(--efta-blue); }
+    .stat-card .label { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+    .cases { display: grid; gap: 1rem; }
+    .case-card {
+      background: white;
+      border: 1px solid var(--efta-border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      transition: box-shadow 0.15s;
+    }
+    .case-card:hover { box-shadow: 0 4px 12px rgba(0,48,135,0.1); }
+    .case-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+    }
+    .case-id { font-size: 0.75rem; color: var(--muted); font-family: monospace; }
+    .domain-badge {
+      background: #e8eef8;
+      color: var(--efta-blue);
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .case-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .case-section { margin-top: 0.75rem; }
+    .case-section h4 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .case-section p { font-size: 0.9rem; }
+    .tool-tag {
+      display: inline-block;
+      background: #f0f4f0;
+      color: #2d5a27;
+      border: 1px solid #c8dfc5;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+    .case-meta {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid var(--efta-border);
+      padding-top: 0.75rem;
+    }
+    .no-results {
+      text-align: center;
+      padding: 3rem;
+      color: var(--muted);
+      background: white;
+      border-radius: 8px;
+      border: 1px solid var(--efta-border);
+    }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid var(--efta-border);
+      margin-top: 3rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>EFTA AI Use Case Registry</h1>
+    <p>Documented AI and automation initiatives — lessons learned, openly shared</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Summary stats — populated via Dataverse FetchXML / Power Pages liquid template -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="number">{{ cases | size }}</div>
+      <div class="label">Published cases</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ domains_count }}</div>
+      <div class="label">Domains covered</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ tools_count }}</div>
+      <div class="label">Tools represented</div>
+    </div>
+    <div class="stat-card">
+      <div class="number">{{ latest_month }}</div>
+      <div class="label">Most recent</div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <label for="domainFilter">Domain</label>
+    <select id="domainFilter" onchange="filterCases()">
+      <option value="">All domains</option>
+      <option>Finance &amp; Budget</option>
+      <option>Legal &amp; Compliance</option>
+      <option>Trade &amp; Statistics</option>
+      <option>HR &amp; Workforce</option>
+      <option>IT &amp; Infrastructure</option>
+      <option>Communications &amp; Outreach</option>
+      <option>Policy &amp; Analysis</option>
+    </select>
+    <label for="toolFilter">Tool</label>
+    <select id="toolFilter" onchange="filterCases()">
+      <option value="">All tools</option>
+      <option>Microsoft Copilot</option>
+      <option>Claude (Anthropic)</option>
+      <option>Azure AI Services</option>
+      <option>Power Automate</option>
+      <option>Power BI</option>
+      <option>GitHub Copilot</option>
+    </select>
+    <input type="search" id="searchBox" placeholder="Search cases..." oninput="filterCases()" />
+  </div>
+
+  <!-- Cases — each block is a Power Pages Liquid loop over Dataverse records -->
+  <div class="cases" id="caseList">
+
+    {% for case in cases %}
+    <div class="case-card" data-domain="{{ case.efta_domain }}" data-tool="{{ case.efta_toolused }}">
+      <div class="case-header">
+        <div>
+          <div class="case-id">{{ case.efta_caseid }}</div>
+          <div class="case-title">{{ case.efta_title }}</div>
+        </div>
+        <span class="domain-badge">{{ case.efta_domain }}</span>
+      </div>
+
+      <div class="case-section">
+        <h4>Problem</h4>
+        <p>{{ case.efta_problemstatement }}</p>
+      </div>
+
+      <div class="case-section">
+        <h4>Outcome</h4>
+        <p>{{ case.efta_outcome }}</p>
+      </div>
+
+      <div class="case-section">
+        <h4>Key Learning</h4>
+        <p>{{ case.efta_keylearning }}</p>
+      </div>
+
+      <span class="tool-tag">{{ case.efta_toolused }}</span>
+
+      <div class="case-meta">
+        <span>Published {{ case.efta_submissiondate | date: "%B %Y" }}</span>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="no-results" id="noResults" style="display:none;">
+      No cases match the current filters.
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  EFTA Secretariat · AI Use Case Registry · Data held within EU jurisdiction
+</footer>
+
+<script>
+  function filterCases() {
+    const domain = document.getElementById('domainFilter').value.toLowerCase();
+    const tool = document.getElementById('toolFilter').value.toLowerCase();
+    const search = document.getElementById('searchBox').value.toLowerCase();
+    const cards = document.querySelectorAll('.case-card');
+    let visible = 0;
+    cards.forEach(card => {
+      const matchDomain = !domain || card.dataset.domain.toLowerCase().includes(domain);
+      const matchTool = !tool || card.dataset.tool.toLowerCase().includes(tool);
+      const matchSearch = !search || card.textContent.toLowerCase().includes(search);
+      const show = matchDomain && matchTool && matchSearch;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    document.getElementById('noResults').style.display = visible === 0 ? '' : 'none';
+  }
+</script>
+
+</body>
+</html>
