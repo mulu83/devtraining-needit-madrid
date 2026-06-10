@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cases — EFTA AI Registry</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #f0f4f9; color: #1a1a2e; }
+    header {
+      background: #003087; color: white;
+      padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; }
+    header a { color: rgba(255,255,255,0.75); font-size: 0.85rem; text-decoration: none; }
+    header a:hover { color: white; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+    .stats { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat { background: white; border: 1px solid #d0dcea; border-radius: 8px; padding: 1rem 1.5rem; text-align: center; min-width: 120px; }
+    .stat .n { font-size: 1.8rem; font-weight: 700; color: #003087; }
+    .stat .l { font-size: 0.75rem; color: #667; margin-top: 0.2rem; }
+
+    .filters { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .filters select, .filters input {
+      padding: 0.45rem 0.75rem; border: 1px solid #b0bfd0; border-radius: 6px;
+      font-size: 0.88rem; background: white; color: #222;
+    }
+
+    .card {
+      background: white; border: 1px solid #d0dcea; border-radius: 10px;
+      padding: 1.25rem 1.5rem; margin-bottom: 1rem;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 0.75rem; }
+    .card-id { font-family: monospace; font-size: 0.78rem; color: #667; }
+    .card-title { font-size: 1rem; font-weight: 600; margin-top: 0.15rem; }
+    .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .badge { padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+    .badge-domain { background: #e8eef8; color: #003087; }
+    .badge-tool  { background: #edf7ed; color: #2d5a27; border: 1px solid #c3dfc1; }
+    .badge-status-pending   { background: #fff8e1; color: #856404; }
+    .badge-status-published { background: #e8f5e9; color: #1b5e20; }
+    .badge-status-rejected  { background: #fce4ec; color: #880e4f; }
+
+    .sections { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.75rem; }
+    @media (max-width: 640px) { .sections { grid-template-columns: 1fr; } }
+    .section h4 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #889; margin-bottom: 0.25rem; }
+    .section p  { font-size: 0.88rem; line-height: 1.5; }
+
+    .card-footer { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #eef; font-size: 0.8rem; color: #889; display: flex; justify-content: space-between; align-items: center; }
+    .approve-actions { display: flex; gap: 0.5rem; }
+    .btn { padding: 0.35rem 0.9rem; border-radius: 5px; border: none; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
+    .btn-approve  { background: #003087; color: white; }
+    .btn-reject   { background: #fce4ec; color: #880e4f; }
+    .btn-approve:hover { background: #00256b; }
+    .btn-reject:hover  { background: #f8bbd0; }
+
+    .empty { text-align: center; padding: 3rem; color: #889; background: white; border-radius: 10px; border: 1px solid #d0dcea; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>EFTA AI Use Case Registry</h1>
+  <a href="/">+ Submit a case</a>
+</header>
+
+<div class="container">
+
+  <div class="stats">
+    <div class="stat"><div class="n">{{ cases|length }}</div><div class="l">Total cases</div></div>
+    <div class="stat"><div class="n">{{ cases|selectattr('status','equalto','Published')|list|length }}</div><div class="l">Published</div></div>
+    <div class="stat"><div class="n">{{ cases|selectattr('status','equalto','Pending Approval')|list|length }}</div><div class="l">Awaiting review</div></div>
+  </div>
+
+  <div class="filters">
+    <select id="domainFilter" onchange="filter()">
+      <option value="">All domains</option>
+      <option>Finance &amp; Budget</option>
+      <option>Legal &amp; Compliance</option>
+      <option>Trade &amp; Statistics</option>
+      <option>HR &amp; Workforce</option>
+      <option>IT &amp; Infrastructure</option>
+      <option>Communications &amp; Outreach</option>
+      <option>Policy &amp; Analysis</option>
+    </select>
+    <select id="statusFilter" onchange="filter()">
+      <option value="">All statuses</option>
+      <option>Pending Approval</option>
+      <option>Published</option>
+      <option>Rejected</option>
+    </select>
+    <input type="search" id="searchBox" placeholder="Search…" oninput="filter()"/>
+  </div>
+
+  <div id="caseList">
+    {% for c in cases %}
+    <div class="card" data-domain="{{ c.domain }}" data-status="{{ c.status }}">
+      <div class="card-header">
+        <div>
+          <div class="card-id">{{ c.case_id }}</div>
+          <div class="card-title">{{ c.title }}</div>
+        </div>
+        <div class="badges">
+          <span class="badge badge-domain">{{ c.domain }}</span>
+          <span class="badge badge-tool">{{ c.tool }}</span>
+          <span class="badge badge-status-{{ c.status|lower|replace(' ','') }}">{{ c.status }}</span>
+        </div>
+      </div>
+
+      <div class="sections">
+        <div class="section"><h4>Problem</h4><p>{{ c.problem }}</p></div>
+        <div class="section"><h4>Outcome</h4><p>{{ c.outcome }}</p></div>
+        <div class="section"><h4>Key learning</h4><p>{{ c.learning }}</p></div>
+        <div class="section"><h4>Visibility</h4><p>{{ c.visibility }}</p></div>
+      </div>
+
+      <div class="card-footer">
+        <span>{{ c.submitted_by }} · {{ c.submitted_at[:10] }}</span>
+        {% if c.status == 'Pending Approval' %}
+        <div class="approve-actions">
+          <button class="btn btn-approve" onclick="decide('{{ c.case_id }}', 'approve', this)">Approve</button>
+          <button class="btn btn-reject"  onclick="decide('{{ c.case_id }}', 'reject', this)">Reject</button>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">No cases yet. <a href="/">Submit the first one →</a></div>
+    {% endfor %}
+    <div class="empty" id="noResults" style="display:none;">No cases match the current filters.</div>
+  </div>
+
+</div>
+
+<script>
+  function filter() {
+    const domain = document.getElementById('domainFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    const q = document.getElementById('searchBox').value.toLowerCase();
+    let visible = 0;
+    document.querySelectorAll('.card').forEach(c => {
+      const ok = (!domain || c.dataset.domain === domain)
+               && (!status || c.dataset.status === status)
+               && (!q || c.textContent.toLowerCase().includes(q));
+      c.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+    document.getElementById('noResults').style.display = visible ? 'none' : '';
+  }
+
+  async function decide(caseId, action, btn) {
+    btn.disabled = true;
+    await fetch(`/approve/${caseId}`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({action})
+    });
+    location.reload();
+  }
+</script>
+</body>
+</html>
