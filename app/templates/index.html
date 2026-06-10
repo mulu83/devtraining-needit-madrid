@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EFTA AI Use Case Registry</title>
+  <meta name="theme-color" content="#003087"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <link rel="manifest" href="/static/manifest.json"/>
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: #f0f4f9; height: 100dvh; display: flex; flex-direction: column; }
+
+    header {
+      background: #003087; color: white;
+      padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; }
+    header a { color: rgba(255,255,255,0.75); font-size: 0.85rem; text-decoration: none; }
+    header a:hover { color: white; }
+
+    .name-bar {
+      background: #e8eef8; border-bottom: 1px solid #c8d5e8;
+      padding: 0.6rem 1.5rem; display: flex; align-items: center; gap: 0.75rem;
+      font-size: 0.85rem; color: #444;
+    }
+    .name-bar input {
+      border: 1px solid #b0bfd0; border-radius: 4px;
+      padding: 0.3rem 0.6rem; font-size: 0.85rem; width: 200px;
+    }
+
+    #chat {
+      flex: 1; overflow-y: auto;
+      padding: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;
+    }
+
+    .msg { max-width: 75%; padding: 0.75rem 1rem; border-radius: 12px; line-height: 1.5; font-size: 0.92rem; white-space: pre-wrap; }
+    .msg.user { align-self: flex-end; background: #003087; color: white; border-bottom-right-radius: 3px; }
+    .msg.bot  { align-self: flex-start; background: white; border: 1px solid #d8e2f0; border-bottom-left-radius: 3px; }
+    .msg.bot.thinking { color: #888; font-style: italic; }
+
+    .confirm-card {
+      align-self: flex-start; background: white; border: 2px solid #003087;
+      border-radius: 12px; padding: 1.25rem; max-width: 480px;
+    }
+    .confirm-card h3 { font-size: 0.9rem; color: #003087; margin-bottom: 0.75rem; }
+    .confirm-card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.75rem; font-size: 0.85rem; }
+    .confirm-card dt { font-weight: 600; color: #555; }
+    .confirm-card dd { color: #222; }
+    .confirm-card .actions { margin-top: 1rem; display: flex; gap: 0.5rem; }
+    .btn { padding: 0.5rem 1.1rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.88rem; font-weight: 600; }
+    .btn-primary { background: #003087; color: white; }
+    .btn-primary:hover { background: #00256b; }
+    .btn-secondary { background: #e8eef8; color: #003087; }
+    .btn-secondary:hover { background: #d0dcf0; }
+
+    .input-area {
+      border-top: 1px solid #d0dcea; background: white;
+      padding: 1rem 1.5rem; display: flex; gap: 0.75rem; align-items: flex-end;
+    }
+    textarea {
+      flex: 1; border: 1px solid #b0bfd0; border-radius: 8px;
+      padding: 0.65rem 0.9rem; font-size: 0.92rem; font-family: inherit;
+      resize: none; max-height: 120px; line-height: 1.4;
+      transition: border-color 0.15s;
+    }
+    textarea:focus { outline: none; border-color: #003087; }
+    button#sendBtn {
+      background: #003087; color: white; border: none;
+      border-radius: 8px; padding: 0.65rem 1.2rem;
+      font-size: 0.92rem; font-weight: 600; cursor: pointer;
+      white-space: nowrap;
+    }
+    button#sendBtn:hover { background: #00256b; }
+    button#sendBtn:disabled { background: #aab; cursor: default; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>EFTA AI Use Case Registry</h1>
+  <a href="/cases">View all cases →</a>
+</header>
+
+<div class="name-bar">
+  Your name: <input type="text" id="nameInput" placeholder="e.g. Maria Andersen" />
+</div>
+
+<div id="chat"></div>
+
+<div class="input-area">
+  <textarea id="msgInput" rows="1" placeholder="Type here or just describe your use case…" autocomplete="off"></textarea>
+  <button id="sendBtn">Send</button>
+</div>
+
+<script>
+  const chat = document.getElementById('chat');
+  const input = document.getElementById('msgInput');
+  const sendBtn = document.getElementById('sendBtn');
+  let pendingCase = null;
+
+  function addMsg(text, role, extra) {
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+    if (extra) div.classList.add(extra);
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+  function showConfirmCard(caseData) {
+    pendingCase = caseData;
+    const card = document.createElement('div');
+    card.className = 'confirm-card';
+    card.innerHTML = `
+      <h3>Ready to save — does this look right?</h3>
+      <dl>
+        <dt>Domain</dt><dd>${caseData.domain}</dd>
+        <dt>Tool</dt><dd>${caseData.tool}</dd>
+        <dt>Outcome</dt><dd>${caseData.outcome}</dd>
+        <dt>Learning</dt><dd>${caseData.learning}</dd>
+        <dt>Visibility</dt><dd>${caseData.visibility}</dd>
+      </dl>
+      <div class="actions">
+        <button class="btn btn-primary" id="saveBtn">Save it</button>
+        <button class="btn btn-secondary" id="editBtn">Change something</button>
+      </div>`;
+    chat.appendChild(card);
+    chat.scrollTop = chat.scrollHeight;
+
+    card.querySelector('#saveBtn').onclick = saveCase;
+    card.querySelector('#editBtn').onclick = () => {
+      pendingCase = null;
+      card.remove();
+      addMsg("No problem — what would you like to change?", 'bot');
+    };
+  }
+
+  async function saveCase() {
+    const name = document.getElementById('nameInput').value.trim();
+    const res = await fetch('/submit', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ case: pendingCase, submitted_by: name })
+    });
+    const data = await res.json();
+    document.querySelector('.confirm-card')?.remove();
+    addMsg(`Saved! Your case reference is ${data.case_id}. Thank you for contributing to EFTA's AI knowledge base.`, 'bot');
+    pendingCase = null;
+  }
+
+  async function send() {
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.style.height = 'auto';
+    addMsg(text, 'user');
+    sendBtn.disabled = true;
+
+    const thinking = addMsg('Thinking…', 'bot', 'thinking');
+
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ message: text })
+    });
+    const data = await res.json();
+    thinking.remove();
+    sendBtn.disabled = false;
+
+    if (data.case_data) {
+      // Strip the <case> block from the displayed message
+      const display = data.message.split('<case>')[0].trim();
+      if (display) addMsg(display, 'bot');
+      showConfirmCard(data.case_data);
+    } else {
+      addMsg(data.message, 'bot');
+    }
+    input.focus();
+  }
+
+  sendBtn.onclick = send;
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = input.scrollHeight + 'px';
+  });
+
+  // Register service worker for PWA installability
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js');
+  }
+
+  // Greet on load
+  window.onload = async () => {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ message: "hello" })
+    });
+    const data = await res.json();
+    addMsg(data.message, 'bot');
+    input.focus();
+  };
+</script>
+</body>
+</html>
