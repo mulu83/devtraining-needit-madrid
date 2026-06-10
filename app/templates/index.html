@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>EFTA AI Use Case Registry</title>
+  <meta name="theme-color" content="#003087"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <link rel="manifest" href="/static/manifest.json"/>
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: "Segoe UI", system-ui, sans-serif; background: #f0f4f9; height: 100dvh; display: flex; flex-direction: column; }
@@ -185,6 +190,11 @@
     input.style.height = 'auto';
     input.style.height = input.scrollHeight + 'px';
   });
+
+  // Register service worker for PWA installability
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js');
+  }
 
   // Greet on load
   window.onload = async () => {
